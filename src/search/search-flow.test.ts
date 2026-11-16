@@ -111,8 +111,8 @@ function single<T>(items: T[], what: string): T {
   return first;
 }
 
-function onlyRequest(inFlight: InFlightRequest[]): InFlightRequest {
-  return single(inFlight, 'request');
+function lastRequest(inFlight: InFlightRequest[]): InFlightRequest {
+  return single(inFlight.slice(-1), 'request');
 }
 
 function onlyFailure(events: FlowEvent[]): FailureEvent {
@@ -140,11 +140,14 @@ describe('search flow', () => {
     vi.useRealTimers();
   });
 
-  /** Types text, waits out the debounce window and returns the started request. */
+  /**
+   * Types text, waits out the debounce window and returns the request that has
+   * just started, which is the last one the flow has started overall.
+   */
   async function typeAndWait(query: string): Promise<InFlightRequest> {
     flow.onInput(query);
     await vi.advanceTimersByTimeAsync(DEBOUNCE_DELAY_MS);
-    return onlyRequest(network.inFlight);
+    return lastRequest(network.inFlight);
   }
 
   describe('debounce window', () => {
@@ -179,7 +182,7 @@ describe('search flow', () => {
       flow.onInput('  spain  ');
       await vi.advanceTimersByTimeAsync(DEBOUNCE_DELAY_MS);
 
-      expect(onlyRequest(network.inFlight).query).toBe('spain');
+      expect(lastRequest(network.inFlight).query).toBe('spain');
     });
   });
 
@@ -197,7 +200,7 @@ describe('search flow', () => {
 
       flow.onInput('spain');
       await vi.advanceTimersByTimeAsync(DEBOUNCE_DELAY_MS);
-      const current = onlyRequest(network.inFlight.slice(-1));
+      const current = lastRequest(network.inFlight);
 
       expect(network.inFlight.map((request) => request.query)).toEqual(['sp', 'spain']);
       expect(stale.signal.aborted).toBe(true);
@@ -209,7 +212,7 @@ describe('search flow', () => {
 
       flow.onInput('spain');
       await vi.advanceTimersByTimeAsync(DEBOUNCE_DELAY_MS);
-      const current = onlyRequest(network.inFlight.slice(-1));
+      const current = lastRequest(network.inFlight);
       current.succeed([spainView]);
       await settle();
 
@@ -398,7 +401,7 @@ describe('search flow', () => {
       await settle();
 
       expect(network.inFlight.map((entry) => entry.query)).toEqual(['spain', 'spain']);
-      expect(onlyRequest(network.inFlight.slice(-1)).signal.aborted).toBe(false);
+      expect(lastRequest(network.inFlight).signal.aborted).toBe(false);
     });
 
     it('retries without waiting for the debounce delay', async () => {
@@ -420,7 +423,7 @@ describe('search flow', () => {
 
       flow.retry();
       await settle();
-      onlyRequest(network.inFlight.slice(-1)).succeed([spainView]);
+      lastRequest(network.inFlight).succeed([spainView]);
       await settle();
 
       expect(eventTypes(recorder.events)).toEqual(['loading', 'success']);
