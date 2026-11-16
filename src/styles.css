@@ -260,8 +260,8 @@ body {
   display: none;
 }
 
-/* While a new search is in flight the older results stay on screen, dimmed so
-   they cannot be mistaken for the answer to the text in the box. */
+/* Results of another query stay on screen while a new search runs; they are
+   dimmed through `data-stale` so they cannot be read as the current answer. */
 .country-list[data-stale='true'] {
   opacity: 0.55;
 }

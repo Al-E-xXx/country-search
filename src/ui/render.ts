@@ -45,7 +45,6 @@ interface Shell {
   input: HTMLInputElement;
   clearButton: HTMLButtonElement;
   status: HTMLElement;
-  layout: HTMLElement;
   results: HTMLUListElement;
 }
 
@@ -225,19 +224,18 @@ function buildShell(mount: HTMLElement): Shell {
   app.append(header, search, status, layout);
   mount.append(app);
 
-  return { input, clearButton, status, layout, results };
+  return { input, clearButton, status, results };
 }
 
 /**
- * Tells assistive technology, and the styles, that the results on screen are not
- * the answer to what the box holds right now.
+ * Marks the results as belonging to another query: the styles dim them, so they
+ * cannot be read as the answer to the text in the box. The list itself stays on
+ * screen — clearing it on every keystroke would make the page flicker.
  */
 function markResultsStale(shell: Shell, isStale: boolean): void {
   if (isStale) {
-    shell.layout.setAttribute('aria-busy', 'true');
     shell.results.dataset.stale = 'true';
   } else {
-    shell.layout.removeAttribute('aria-busy');
     delete shell.results.dataset.stale;
   }
 }
@@ -272,20 +270,37 @@ function renderStatus(shell: Shell, tone: StatusTone, message: string): void {
  */
 export function createSearchView(mount: HTMLElement, actions: SearchViewActions): SearchView {
   const shell = buildShell(mount);
+  /** The query the results on screen are the answer to; `null` when there are none. */
+  let resultsQuery: string | null = null;
+
+  /**
+   * Keeps the stale marking in step with the search box. The results answer
+   * `resultsQuery`, so they stop being current as soon as the text differs — which
+   * happens while the debounce is still waiting, before a new request exists.
+   */
+  const syncStaleMarking = (): void => {
+    const current = shell.input.value.trim();
+    markResultsStale(shell, resultsQuery !== null && resultsQuery !== current);
+  };
+
+  const clearResults = (): void => {
+    shell.results.replaceChildren();
+    shell.results.hidden = true;
+    resultsQuery = null;
+    markResultsStale(shell, false);
+  };
 
   const showIdle = (): void => {
     renderStatus(shell, 'idle', IDLE_MESSAGE);
-    shell.results.replaceChildren();
-    shell.results.hidden = true;
-    markResultsStale(shell, false);
+    clearResults();
   };
 
   const showLoading = (query: string): void => {
     renderStatus(shell, 'loading', `Searching for ${quoted(query)}\u2026`);
-    // Results of the previous query stay on screen while the new search is in
-    // flight — clearing them would make the page flicker on every keystroke — but
-    // they are marked as belonging to the older text, not to this one.
-    markResultsStale(shell, !shell.results.hidden && shell.results.children.length > 0);
+    // The results of the previous query stay on screen while this search is in
+    // flight: they are not wrong yet, and clearing them would make the list
+    // flicker on every keystroke. They are only marked as another query's answer.
+    syncStaleMarking();
   };
 
   const showResults = (countries: CountryView[], query: string): void => {
@@ -293,21 +308,18 @@ export function createSearchView(mount: HTMLElement, actions: SearchViewActions)
     renderStatus(shell, 'idle', `${countries.length} ${kind} for ${quoted(query)}`);
     shell.results.replaceChildren(...countries.map(createCountryCard));
     shell.results.hidden = false;
-    markResultsStale(shell, false);
+    resultsQuery = query;
+    syncStaleMarking();
   };
 
   const showNoMatches = (query: string): void => {
     renderStatus(shell, 'empty', `No country matches ${quoted(query)}. Try another spelling.`);
-    shell.results.replaceChildren();
-    shell.results.hidden = true;
-    markResultsStale(shell, false);
+    clearResults();
   };
 
   const showFailure = (failure: SearchFailure, query: string): void => {
     renderStatus(shell, 'error', failureMessage(failure.kind, failure.status, query));
-    shell.results.replaceChildren();
-    shell.results.hidden = true;
-    markResultsStale(shell, false);
+    clearResults();
 
     // A retry is offered only when the same request could plausibly work.
     if (failure.retryable) {
@@ -320,12 +332,23 @@ export function createSearchView(mount: HTMLElement, actions: SearchViewActions)
     }
   };
 
-  const setQuery = (value: string): void => {
-    shell.input.value = value;
+  /** The clear button only makes sense while there is something to clear. */
+  const syncClearButton = (value: string): void => {
     shell.clearButton.hidden = value === '';
   };
 
+  const setQuery = (value: string): void => {
+    shell.input.value = value;
+    syncClearButton(value);
+    syncStaleMarking();
+  };
+
   shell.input.addEventListener('input', () => {
+    // The box already holds what was typed, so only the clear button and the stale
+    // marking are out of date — for example after the native "clear" affordance of
+    // a `type="search"` box, which changes the value without this app's help.
+    syncClearButton(shell.input.value);
+    syncStaleMarking();
     actions.onQueryChange(shell.input.value);
   });
   shell.clearButton.addEventListener('click', () => {
