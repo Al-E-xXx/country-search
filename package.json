@@ -1,0 +1,18 @@
+{
+  "name": "country-search",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Live country search app (RS School fullstack engineering task)",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-assets.mjs",
+    "start": "serve dist",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "serve": "^14.2.8"
+  }
+}
