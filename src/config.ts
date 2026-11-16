@@ -9,3 +9,9 @@ export const DEBOUNCE_DELAY_MS = 300;
 
 /** How long a single request may take before it is given up on. */
 export const REQUEST_TIMEOUT_MS = 8_000;
+
+/** How long an answer may be reused before the API is asked again. */
+export const SEARCH_CACHE_TTL_MS = 30_000;
+
+/** How many answers the cache keeps before the oldest one is pushed out. */
+export const SEARCH_CACHE_MAX_ENTRIES = 50;
