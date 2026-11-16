@@ -1,0 +1,2 @@
+# Normalize line endings: LF everywhere, regardless of core.autocrlf.
+* text=auto eol=lf
