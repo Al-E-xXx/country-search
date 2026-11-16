@@ -348,6 +348,11 @@ body {
   margin-bottom: var(--space);
 }
 
+.details__titles {
+  display: grid;
+  gap: 0.15rem;
+}
+
 .details__flag {
   width: 4.5rem;
   height: 3rem;
@@ -378,6 +383,7 @@ body {
 
 .details__close {
   margin-left: auto;
+  padding: 0.4rem 0.75rem;
   border: 1px solid var(--color-line);
   border-radius: 8px;
   background: transparent;
@@ -423,7 +429,9 @@ body {
 /* Responsive ------------------------------------------------------------- */
 
 @media (min-width: 48rem) {
-  .layout {
+  /* The second column only exists while the details panel is open — the renderer
+     closes it with `hidden`, so the results keep the whole width otherwise. */
+  .layout:has(.details:not([hidden])) {
     grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
   }
 }

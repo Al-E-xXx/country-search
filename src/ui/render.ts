@@ -46,6 +46,7 @@ interface Shell {
   clearButton: HTMLButtonElement;
   status: HTMLElement;
   results: HTMLUListElement;
+  details: HTMLElement;
 }
 
 const IDLE_MESSAGE = 'Start typing to search for a country.';
@@ -55,7 +56,16 @@ const QUOTE_CLOSE = '\u201D';
 const POPULATION_LABEL = 'Population';
 const CAPITAL_LABEL = 'Capital';
 const REGION_LABEL = 'Region';
+const AREA_LABEL = 'Area';
+const AREA_UNIT = 'km²';
+const LANGUAGES_LABEL = 'Languages';
+const CURRENCIES_LABEL = 'Currencies';
+const BORDERS_LABEL = 'Bordering countries';
 const RETRY_LABEL = 'Try again';
+const CLOSE_LABEL = 'Close';
+const LIST_SEPARATOR = ', ';
+/** The details panel is one element reused for every country, so a card can name it. */
+const DETAILS_PANEL_ID = 'country-details';
 
 const numberFormat = new Intl.NumberFormat('en-US');
 
@@ -143,7 +153,10 @@ function cardMeta(country: CountryView): string {
 }
 
 /** One result: a button, because selecting a country is what clicking it does. */
-function createCountryCard(country: CountryView): HTMLLIElement {
+function createCountryCard(
+  country: CountryView,
+  onSelect: (country: CountryView, card: HTMLButtonElement) => void,
+): HTMLLIElement {
   const item = document.createElement('li');
   item.className = 'country-card';
 
@@ -151,6 +164,8 @@ function createCountryCard(country: CountryView): HTMLLIElement {
   select.type = 'button';
   select.className = 'country-card__select';
   select.setAttribute('aria-label', `Show details for ${country.name}`);
+  select.setAttribute('aria-expanded', 'false');
+  select.setAttribute('aria-controls', DETAILS_PANEL_ID);
 
   select.append(createFlag(country, 'country-card__flag'));
 
@@ -171,7 +186,105 @@ function createCountryCard(country: CountryView): HTMLLIElement {
 
   select.append(body);
   item.append(select);
+
+  select.addEventListener('click', () => {
+    onSelect(country, select);
+  });
+
   return item;
+}
+
+function countOrNotReported(value: number | null): string {
+  return value === null ? NOT_REPORTED : formatCount(value);
+}
+
+function listOrNotReported(items: string[]): string {
+  return items.length === 0 ? NOT_REPORTED : items.join(LIST_SEPARATOR);
+}
+
+/**
+ * What a details row says about a country. A value the endpoint did not report is
+ * spelled out rather than left out, so a blank never looks like a bug. `borders`
+ * holds alpha-3 codes: the search endpoint gives no names for them, and inventing
+ * a second request per border is not worth a prettier list.
+ */
+function detailsFacts(country: CountryView): Array<[string, string]> {
+  const area = country.area === null ? null : `${formatCount(country.area)} ${AREA_UNIT}`;
+  return [
+    [CAPITAL_LABEL, country.capital ?? NOT_REPORTED],
+    [POPULATION_LABEL, countOrNotReported(country.population)],
+    [AREA_LABEL, area ?? NOT_REPORTED],
+    [LANGUAGES_LABEL, listOrNotReported(country.languages)],
+    [CURRENCIES_LABEL, listOrNotReported(country.currencies)],
+    [BORDERS_LABEL, listOrNotReported(country.borders)],
+  ];
+}
+
+/** The line under the country name: who its people are and where it sits. */
+function detailsSummary(country: CountryView): string {
+  return joinParts([country.demonym, country.region, country.subregion]);
+}
+
+/**
+ * Builds the details of one country. The panel is rebuilt on every selection — the
+ * same reason the retry button is: an element that is thrown away each time cannot
+ * be wired from the outside.
+ */
+function createDetailsNodes(country: CountryView, onClose: () => void): HTMLElement[] {
+  const header = document.createElement('div');
+  header.className = 'details__header';
+  header.append(createFlag(country, 'details__flag'));
+
+  const titles = document.createElement('div');
+  titles.className = 'details__titles';
+  const name = document.createElement('h2');
+  name.className = 'details__name';
+  name.textContent = country.name;
+  titles.append(name);
+  if (country.nativeName !== null) {
+    const nativeName = document.createElement('p');
+    nativeName.className = 'details__native-name';
+    nativeName.textContent = country.nativeName;
+    titles.append(nativeName);
+  }
+  header.append(titles);
+
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'details__close';
+  close.textContent = CLOSE_LABEL;
+  close.setAttribute('aria-label', `Close details for ${country.name}`);
+  close.addEventListener('click', onClose);
+  header.append(close);
+
+  const nodes: HTMLElement[] = [header];
+
+  const summaryText = detailsSummary(country);
+  if (summaryText !== '') {
+    const summary = document.createElement('p');
+    summary.className = 'details__summary';
+    summary.textContent = summaryText;
+    nodes.push(summary);
+  }
+
+  const facts = document.createElement('dl');
+  facts.className = 'details__facts';
+  for (const [label, value] of detailsFacts(country)) {
+    const row = document.createElement('div');
+    row.className = 'details__fact';
+
+    const term = document.createElement('dt');
+    term.textContent = label;
+
+    const description = document.createElement('dd');
+    description.textContent = value;
+
+    row.append(term, description);
+    facts.append(row);
+  }
+  nodes.push(facts);
+
+  return nodes;
 }
 
 /** The part of the page the app owns: search box, status panel, results. */
@@ -219,12 +332,18 @@ function buildShell(mount: HTMLElement): Shell {
   const results = document.createElement('ul');
   results.className = 'country-list';
 
-  layout.append(results);
+  const details = document.createElement('aside');
+  details.className = 'details';
+  details.setAttribute('id', DETAILS_PANEL_ID);
+  details.setAttribute('aria-label', 'Country details');
+  details.hidden = true;
+
+  layout.append(results, details);
 
   app.append(header, search, status, layout);
   mount.append(app);
 
-  return { input, clearButton, status, results };
+  return { input, clearButton, status, results, details };
 }
 
 /**
@@ -265,13 +384,51 @@ function renderStatus(shell: Shell, tone: StatusTone, message: string): void {
 
 /**
  * Creates the interface inside `mount`. The view attaches its own listeners: the
- * search box, the clear button and the retry button of the failure state, which
- * is rebuilt on every failure and therefore cannot be wired from the outside.
+ * search box, the clear button, the cards, the details close button and the retry
+ * button of the failure state. All of those are rebuilt as the search moves on, so
+ * nobody outside could keep hold of them; what the view reports to the app is only
+ * the intent behind a press.
  */
 export function createSearchView(mount: HTMLElement, actions: SearchViewActions): SearchView {
   const shell = buildShell(mount);
   /** The query the results on screen are the answer to; `null` when there are none. */
   let resultsQuery: string | null = null;
+  /** The card whose details are open. Only one country is ever selected. */
+  let selectedCard: HTMLButtonElement | null = null;
+
+  /**
+   * Closes the details panel. It can be asked for by the panel's own button, by
+   * pressing the same card again, by Escape, or by a new set of results — which is
+   * why the code lives in one place instead of in the button.
+   */
+  const closeDetails = (): void => {
+    if (selectedCard !== null) {
+      delete selectedCard.dataset.selected;
+      selectedCard.setAttribute('aria-expanded', 'false');
+      selectedCard = null;
+    }
+    shell.details.hidden = true;
+    shell.details.replaceChildren();
+  };
+
+  /**
+   * Shows one country's details. A card is a toggle: pressing the one that is
+   * already open closes the panel again, and `aria-expanded` on the card tells
+   * assistive technology which of the two the next press will do.
+   */
+  const openDetails = (country: CountryView, card: HTMLButtonElement): void => {
+    const isAlreadyOpen = selectedCard === card;
+    closeDetails();
+    if (isAlreadyOpen) {
+      return;
+    }
+
+    shell.details.replaceChildren(...createDetailsNodes(country, closeDetails));
+    shell.details.hidden = false;
+    selectedCard = card;
+    card.dataset.selected = 'true';
+    card.setAttribute('aria-expanded', 'true');
+  };
 
   /**
    * Keeps the stale marking in step with the search box. The results answer
@@ -284,6 +441,8 @@ export function createSearchView(mount: HTMLElement, actions: SearchViewActions)
   };
 
   const clearResults = (): void => {
+    // Details belong to a card of this list, so they leave with the list.
+    closeDetails();
     shell.results.replaceChildren();
     shell.results.hidden = true;
     resultsQuery = null;
@@ -306,7 +465,11 @@ export function createSearchView(mount: HTMLElement, actions: SearchViewActions)
   const showResults = (countries: CountryView[], query: string): void => {
     const kind = countries.length === 1 ? 'country' : 'countries';
     renderStatus(shell, 'idle', `${countries.length} ${kind} for ${quoted(query)}`);
-    shell.results.replaceChildren(...countries.map(createCountryCard));
+    // Any details on screen belong to cards that are about to be thrown away.
+    closeDetails();
+    shell.results.replaceChildren(
+      ...countries.map((country) => createCountryCard(country, openDetails)),
+    );
     shell.results.hidden = false;
     resultsQuery = query;
     syncStaleMarking();
@@ -355,6 +518,16 @@ export function createSearchView(mount: HTMLElement, actions: SearchViewActions)
     setQuery('');
     actions.onClearQuery();
   });
+
+  // Escape closes the details. Focus can be on a card or inside the panel, so the
+  // key is watched on both containers; nothing else on the page reacts to it.
+  const closeDetailsOnEscape = (event: KeyboardEvent): void => {
+    if (event.key === 'Escape') {
+      closeDetails();
+    }
+  };
+  shell.results.addEventListener('keydown', closeDetailsOnEscape);
+  shell.details.addEventListener('keydown', closeDetailsOnEscape);
 
   return {
     showIdle,
