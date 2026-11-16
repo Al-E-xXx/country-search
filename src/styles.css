@@ -56,7 +56,7 @@ body {
   line-height: var(--line-height);
 }
 
-/* App shell: .app > .app__header + .search + .layout --------------------- */
+/* App shell: .app > .app__header + .search + .history + .status + .layout -- */
 
 .app {
   max-width: 60rem;
@@ -147,6 +147,91 @@ body {
 
 .search__clear[hidden] {
   display: none;
+}
+
+/* Remembered searches: .history > .history__label + ul.history__list +
+   button.history__clear -----------------------------------------------
+   The row appears once a search has been answered and is taken away again
+   when the list is emptied, so before the first search there is no dead
+   space where it would have been. Each chip repeats one earlier search, so it
+   is a button; a long search is cut with an ellipsis and its full text is in
+   the accessible name and the tooltip instead. */
+.history {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.5rem;
+  margin: 0 0 calc(var(--space) * 1.25);
+}
+
+.history[hidden] {
+  display: none;
+}
+
+.history__label {
+  margin-right: 0.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.history__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history__item {
+  /* The list is a flex row of chips, so the items must not be drawn as bullets. */
+  display: flex;
+}
+
+.history__chip {
+  max-width: 14rem;
+  padding: 0.3rem 0.7rem;
+  border: var(--line-thin) solid var(--color-accent-line);
+  border-radius: 999px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history__chip:hover {
+  border-color: var(--color-accent);
+  background: #dbe8ff;
+}
+
+.history__clear {
+  padding: 0.3rem 0.6rem;
+  border: var(--line-thin) solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+}
+
+.history__clear:hover {
+  border-color: var(--color-line);
+  background: #f7fafc;
+  color: var(--color-text);
+}
+
+.history__chip:focus-visible,
+.history__clear:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 /* The retry control stands out: it is the way out of a failed search, so it is
@@ -445,7 +530,9 @@ body {
 .search__clear,
 .status__action,
 .country-card__select,
-.details__close {
+.details__close,
+.history__chip,
+.history__clear {
   transition:
     color 120ms ease,
     background-color 120ms ease,
@@ -478,6 +565,8 @@ body {
   .status__action,
   .country-card__select,
   .details__close,
+  .history__chip,
+  .history__clear,
   .country-list {
     transition: none;
   }

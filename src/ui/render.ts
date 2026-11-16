@@ -27,6 +27,10 @@ export interface SearchViewActions {
   onClearQuery(): void;
   /** Fires when the failure state is asked to search again. */
   onRetry(): void;
+  /** Fires when one of the searches remembered from earlier is picked. */
+  onHistoryPick(query: string): void;
+  /** Fires when the remembered searches are thrown away. */
+  onClearHistory(): void;
 }
 
 export interface SearchView {
@@ -47,6 +51,12 @@ export interface SearchView {
 
   /** Puts `value` in the search box, keeping the clear button in step. */
   setQuery(value: string): void;
+
+  /**
+   * Offers back the searches made before, most recent first. An empty list takes
+   * the row away, so before the first search there is nothing to pick.
+   */
+  showHistory(entries: string[]): void;
 }
 
 interface Shell {
@@ -55,6 +65,8 @@ interface Shell {
   status: HTMLElement;
   results: HTMLUListElement;
   details: HTMLElement;
+  /** The row of searches remembered from earlier visits. */
+  history: HTMLElement;
 }
 
 const IDLE_MESSAGE = 'Start typing to search for a country.';
@@ -72,6 +84,8 @@ const BORDERS_LABEL = 'Bordering countries';
 const RETRY_LABEL = 'Try again';
 const CLOSE_LABEL = 'Close';
 const LIST_SEPARATOR = ', ';
+const HISTORY_LABEL = 'Recent searches';
+const HISTORY_CLEAR_LABEL = 'Clear history';
 /** The details panel is one element reused for every country, so a card can name it. */
 const DETAILS_PANEL_ID = 'country-details';
 
@@ -295,7 +309,26 @@ function createDetailsNodes(country: CountryView, onClose: () => void): HTMLElem
   return nodes;
 }
 
-/** The part of the page the app owns: search box, status panel, results. */
+/** One remembered search: a button, because picking it starts that search again. */
+function createHistoryItem(query: string, onPick: (query: string) => void): HTMLLIElement {
+  const item = document.createElement('li');
+  item.className = 'history__item';
+
+  const chip = document.createElement('button');
+  chip.type = 'button';
+  chip.className = 'history__chip';
+  chip.textContent = query;
+  // The styles cut a long search with an ellipsis, so its full text is spelled out
+  // in the accessible name as well as in the tooltip.
+  chip.setAttribute('aria-label', `Search for ${query} again`);
+  chip.title = query;
+  chip.addEventListener('click', () => onPick(query));
+
+  item.append(chip);
+  return item;
+}
+
+/** The part of the page the app owns: search box, remembered searches, status, results. */
 function buildShell(mount: HTMLElement): Shell {
   const app = document.createElement('div');
   app.className = 'app';
@@ -329,6 +362,15 @@ function buildShell(mount: HTMLElement): Shell {
 
   search.append(input, clearButton);
 
+  /**
+   * The row of searches remembered from earlier. It is empty and hidden until the
+   * first search is answered, so there is nothing to pick before there is anything
+   * to offer.
+   */
+  const history = document.createElement('div');
+  history.className = 'history';
+  history.hidden = true;
+
   const status = document.createElement('output');
   status.className = 'status';
   status.setAttribute('role', 'status');
@@ -348,10 +390,10 @@ function buildShell(mount: HTMLElement): Shell {
 
   layout.append(results, details);
 
-  app.append(header, search, status, layout);
+  app.append(header, search, history, status, layout);
   mount.append(app);
 
-  return { input, clearButton, status, results, details };
+  return { input, clearButton, status, results, details, history };
 }
 
 /**
@@ -392,10 +434,10 @@ function renderStatus(shell: Shell, tone: StatusTone, message: string): void {
 
 /**
  * Creates the interface inside `mount`. The view attaches its own listeners: the
- * search box, the clear button, the cards, the details close button and the retry
- * button of the failure state. All of those are rebuilt as the search moves on, so
- * nobody outside could keep hold of them; what the view reports to the app is only
- * the intent behind a press.
+ * search box, the clear button, the cards, the details close button, the retry
+ * button of the failure state and the chips of remembered searches. All of those
+ * are rebuilt as the search moves on, so nobody outside could keep hold of them;
+ * what the view reports to the app is only the intent behind a press.
  */
 export function createSearchView(mount: HTMLElement, actions: SearchViewActions): SearchView {
   const shell = buildShell(mount);
@@ -530,6 +572,34 @@ export function createSearchView(mount: HTMLElement, actions: SearchViewActions)
     shell.status.replaceChildren();
   };
 
+  /**
+   * Offers back the searches that reached an answer, newest first. The row is
+   * rebuilt every time, like the retry button: chips come and go with each answer,
+   * so nobody outside could hold on to them — picking one is reported as an intent.
+   */
+  const showHistory = (entries: string[]): void => {
+    if (entries.length === 0) {
+      shell.history.replaceChildren();
+      shell.history.hidden = true;
+      return;
+    }
+
+    const list = document.createElement('ul');
+    list.className = 'history__list';
+    list.setAttribute('aria-label', HISTORY_LABEL);
+    list.append(...entries.map((query) => createHistoryItem(query, actions.onHistoryPick)));
+
+    const forget = document.createElement('button');
+    forget.type = 'button';
+    forget.className = 'history__clear';
+    forget.textContent = HISTORY_CLEAR_LABEL;
+    forget.setAttribute('aria-label', 'Forget the searches remembered here');
+    forget.addEventListener('click', actions.onClearHistory);
+
+    shell.history.replaceChildren(textElement('history__label', HISTORY_LABEL), list, forget);
+    shell.history.hidden = false;
+  };
+
   /** The clear button only makes sense while there is something to clear. */
   const syncClearButton = (value: string): void => {
     shell.clearButton.hidden = value === '';
@@ -574,5 +644,6 @@ export function createSearchView(mount: HTMLElement, actions: SearchViewActions)
     showFailure,
     clearFeedbackFor,
     setQuery,
+    showHistory,
   };
 }
