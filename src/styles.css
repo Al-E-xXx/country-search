@@ -1,0 +1,431 @@
+/* ---------------------------------------------------------------------------
+   Country search — interface styles.
+
+   Every element styled here is created by src/ui/render.ts, and each block below
+   names the element it styles, so the CSS and the builder can be read together.
+   The four states of a search are deliberately different in colour, shape and
+   icon, not only in text (see the "Search states" section).
+--------------------------------------------------------------------------- */
+
+:root {
+  --color-page: #f1f5f9;
+  --color-surface: #ffffff;
+  --color-line: #dbe2ea;
+  --color-text: #16202c;
+  --color-text-muted: #5b6a7d;
+
+  --color-accent: #1d4ed8;
+  --color-accent-soft: #e8f0ff;
+  --color-accent-line: #bcd2fe;
+
+  --color-loading: #1d4ed8;
+  --color-loading-bg: #eaf1ff;
+  --color-loading-line: #bcd2fe;
+
+  --color-empty: #92400e;
+  --color-empty-bg: #fff8e6;
+  --color-empty-line: #f2dfae;
+
+  --color-error: #991b1b;
+  --color-error-bg: #fdeeee;
+  --color-error-line: #f3c6c6;
+
+  --radius-panel: 12px;
+  --radius-card: 10px;
+  --shadow-card: 0 1px 2px rgb(22 32 44 / 8%), 0 2px 8px rgb(22 32 44 / 6%);
+  --space: 1rem;
+}
+
+/* Base ------------------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-page);
+  color: var(--color-text);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* App shell: .app > .app__header + .search + .layout --------------------- */
+
+.app {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: calc(var(--space) * 2) calc(var(--space) * 1.25) calc(var(--space) * 3);
+}
+
+.app__header {
+  margin-bottom: calc(var(--space) * 1.5);
+}
+
+.app__title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.app__hint {
+  margin: 0.25rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(var(--space) * 1.5);
+  align-items: start;
+}
+
+/* Search field: .search > input.search__input + button.search__clear ----- */
+
+.search {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: calc(var(--space) * 1.25);
+}
+
+.search__input {
+  flex: 1 1 auto;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+}
+
+.search__input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.search__input:hover {
+  border-color: #b9c5d4;
+}
+
+.search__input:focus-visible {
+  outline: 3px solid var(--color-accent-line);
+  outline-offset: 2px;
+  border-color: var(--color-accent);
+}
+
+.search__clear,
+.status__action {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.search__clear:hover,
+.status__action:hover {
+  border-color: #b9c5d4;
+  background: #f7fafc;
+}
+
+.search__clear:focus-visible,
+.status__action:focus-visible,
+.country-card__select:focus-visible,
+.details__close:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.search__clear[hidden] {
+  display: none;
+}
+
+/* The retry control stands out: it is the way out of a failed search. */
+.status__action {
+  border-color: var(--color-error-line);
+  background: var(--color-surface);
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+.status__action[hidden] {
+  display: none;
+}
+
+/* Search states: .status[data-tone] --------------------------------------
+   One panel per state. Colour, border, icon and shape all differ, so the
+   four states are recognisable without reading the text. The element is only
+   in the document when there is something to say about the current search. */
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 0 0 calc(var(--space) * 1.25);
+  padding: 0.9rem 1.15rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+}
+
+.status::before {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.status__text {
+  flex: 1 1 12rem;
+  margin: 0;
+}
+
+.status[data-tone='idle'] {
+  border-style: dashed;
+  color: var(--color-text-muted);
+}
+
+.status[data-tone='idle']::before {
+  content: '💬';
+}
+
+.status[data-tone='loading'] {
+  border-color: var(--color-loading-line);
+  background: var(--color-loading-bg);
+  color: var(--color-loading);
+}
+
+.status[data-tone='loading']::before {
+  content: '';
+}
+
+.status[data-tone='empty'] {
+  border-color: var(--color-empty-line);
+  background: var(--color-empty-bg);
+  color: var(--color-empty);
+}
+
+.status[data-tone='empty']::before {
+  content: '🔍';
+}
+
+.status[data-tone='error'] {
+  border-color: var(--color-error-line);
+  background: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+.status[data-tone='error']::before {
+  content: '⚠';
+}
+
+/* Spinner inside the loading state only. */
+.status__spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Results: .country-list > li.country-card > button.country-card__select - */
+
+.country-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--space);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.country-list[hidden] {
+  display: none;
+}
+
+.country-card__select {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+}
+
+.country-card__select:hover {
+  border-color: var(--color-accent-line);
+  background: var(--color-accent-soft);
+}
+
+.country-card__select[data-selected='true'] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.country-card__flag {
+  width: 3rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+  object-fit: cover;
+  background: #eef2f7;
+}
+
+.country-card__flag--emoji {
+  display: grid;
+  place-items: center;
+  font-size: 1.5rem;
+}
+
+.country-card__body {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.country-card__name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.country-card__meta,
+.country-card__population {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+/* Details panel: aside.details ------------------------------------------ */
+
+.details {
+  padding: calc(var(--space) * 1.25);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.details[hidden] {
+  display: none;
+}
+
+.details__header {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: var(--space);
+}
+
+.details__flag {
+  width: 4.5rem;
+  height: 3rem;
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.details__flag--emoji {
+  display: grid;
+  place-items: center;
+  width: 4.5rem;
+  height: 3rem;
+  font-size: 2rem;
+}
+
+.details__name {
+  margin: 0;
+  font-size: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
+.details__native-name {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.details__close {
+  margin-left: auto;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.details__close:hover {
+  color: var(--color-text);
+  border-color: #b9c5d4;
+}
+
+.details__summary {
+  margin: 0 0 var(--space);
+  color: var(--color-text-muted);
+}
+
+.details__facts {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.details__fact {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  gap: 0.5rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--color-line);
+}
+
+.details__fact dt {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.details__fact dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Responsive ------------------------------------------------------------- */
+
+@media (min-width: 48rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  }
+}
+
+/* Motion and contrast preferences --------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .status__spinner {
+    animation: none;
+  }
+}
