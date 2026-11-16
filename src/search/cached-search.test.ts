@@ -228,6 +228,29 @@ describe('search cache', () => {
       await expect(promise).resolves.toEqual([spainView]);
     });
 
+    it('does not let a request that was given up on disturb the one that replaces it', async () => {
+      const leaving = await ask('spain');
+      const cancelled = expect(leaving.promise).rejects.toMatchObject(ABORTED);
+
+      leaving.controller.abort();
+      // The replacement starts in the same turn, before the cancellation of the
+      // first request has finished travelling.
+      const second = await ask('spain');
+      await settle();
+      await cancelled;
+
+      // The replacement is still the request in flight, so a third caller joins it
+      // instead of starting a third one.
+      const third = await ask('spain');
+      await settle();
+      lastRequest(network.inFlight).succeed([spainView]);
+      await settle();
+
+      expect(queriesOf(network.inFlight)).toEqual(['spain', 'spain']);
+      await expect(second.promise).resolves.toEqual([spainView]);
+      await expect(third.promise).resolves.toEqual([spainView]);
+    });
+
     it('does not hold back a different query that is asked meanwhile', async () => {
       await ask('spain');
       await ask('portugal');
@@ -280,6 +303,34 @@ describe('search cache', () => {
     });
   });
 
+  describe('an answer that arrives after its request was given up on', () => {
+    it('is not put away for later, because nobody wants it', async () => {
+      // A transport that carries on answering although it was cancelled: the only
+      // way to see whether a late answer gets filed away for the next caller.
+      const deaf = createCachedSearch({
+        search: () =>
+          new Promise<CountryView[]>((resolve) => {
+            setTimeout(() => resolve([spainView]), 1_000);
+          }),
+      });
+      const controller = new AbortController();
+
+      const promise = deaf.search('spain', controller.signal);
+      const cancelled = expect(promise).rejects.toMatchObject(ABORTED);
+      await settle();
+
+      controller.abort();
+      await settle();
+      await cancelled;
+      expect(deaf.size()).toBe(0);
+
+      await vi.advanceTimersByTimeAsync(1_000);
+      await settle();
+
+      expect(deaf.size()).toBe(0);
+    });
+  });
+
   describe('how long an answer may be reused', () => {
     it('reuses an answer while it is still inside the configured window', async () => {
       await fetchOnce('spain', [spainView]);
@@ -303,19 +354,27 @@ describe('search cache', () => {
 
     it('honours a window chosen for one cache', async () => {
       const shortLived = createCachedSearch({ search: network.search, ttlMs: 5_000 });
-      const { promise } = shortLived.search('spain', new AbortController().signal);
+      const first = shortLived.search('spain', new AbortController().signal);
       await settle();
       lastRequest(network.inFlight).succeed([spainView]);
       await settle();
-      await expect(promise).resolves.toEqual([spainView]);
+      await expect(first).resolves.toEqual([spainView]);
 
+      // One millisecond short of the window the answer is still used.
       await vi.advanceTimersByTimeAsync(4_999);
-      await shortLived.search('spain', new AbortController().signal);
+      const second = shortLived.search('spain', new AbortController().signal);
+      await settle();
+      await expect(second).resolves.toEqual([spainView]);
+
+      // One millisecond later it is not, and the fresh answer takes its place.
       await vi.advanceTimersByTimeAsync(1);
-      await shortLived.search('spain', new AbortController().signal);
+      const third = shortLived.search('spain', new AbortController().signal);
+      await settle();
+      lastRequest(network.inFlight).succeed([franceView]);
       await settle();
 
       expect(queriesOf(network.inFlight)).toEqual(['spain', 'spain']);
+      await expect(third).resolves.toEqual([franceView]);
     });
   });
 
