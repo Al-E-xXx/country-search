@@ -13,6 +13,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
-    "serve": "^14.2.8"
+    "serve": "^14.2.8",
+    "typescript": "^7.0.2"
   }
 }
