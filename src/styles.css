@@ -260,6 +260,12 @@ body {
   display: none;
 }
 
+/* While a new search is in flight the older results stay on screen, dimmed so
+   they cannot be mistaken for the answer to the text in the box. */
+.country-list[data-stale='true'] {
+  opacity: 0.55;
+}
+
 .country-card__select {
   display: flex;
   gap: 0.75rem;
