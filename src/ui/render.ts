@@ -37,6 +37,14 @@ export interface SearchView {
   showNoMatches(query: string): void;
   showFailure(failure: SearchFailure, query: string): void;
 
+  /**
+   * Takes back the message of a search whose query the box no longer matches,
+   * together with the retry control that came with it. The flow reports a new
+   * state only once its debounce has passed, so for a moment the old message is
+   * the only thing on screen that can still be pressed.
+   */
+  clearFeedbackFor(query: string): void;
+
   /** Puts `value` in the search box, keeping the clear button in step. */
   setQuery(value: string): void;
 }
@@ -440,6 +448,9 @@ export function createSearchView(mount: HTMLElement, actions: SearchViewActions)
     markResultsStale(shell, resultsQuery !== null && resultsQuery !== current);
   };
 
+  /** The query the feedback on screen was written for, or `null` when there is none. */
+  let feedbackQuery: string | null = null;
+
   const clearResults = (): void => {
     // Details belong to a card of this list, so they leave with the list.
     closeDetails();
@@ -451,11 +462,15 @@ export function createSearchView(mount: HTMLElement, actions: SearchViewActions)
 
   const showIdle = (): void => {
     renderStatus(shell, 'idle', IDLE_MESSAGE);
+    feedbackQuery = null;
     clearResults();
   };
 
   const showLoading = (query: string): void => {
     renderStatus(shell, 'loading', `Searching for ${quoted(query)}\u2026`);
+    // The message of a failed or empty search is replaced by this one, so the
+    // retry control that came with it is gone as well.
+    feedbackQuery = null;
     // The results of the previous query stay on screen while this search is in
     // flight: they are not wrong yet, and clearing them would make the list
     // flicker on every keystroke. They are only marked as another query's answer.
@@ -465,6 +480,7 @@ export function createSearchView(mount: HTMLElement, actions: SearchViewActions)
   const showResults = (countries: CountryView[], query: string): void => {
     const kind = countries.length === 1 ? 'country' : 'countries';
     renderStatus(shell, 'idle', `${countries.length} ${kind} for ${quoted(query)}`);
+    feedbackQuery = null;
     // Any details on screen belong to cards that are about to be thrown away.
     closeDetails();
     shell.results.replaceChildren(
@@ -477,11 +493,13 @@ export function createSearchView(mount: HTMLElement, actions: SearchViewActions)
 
   const showNoMatches = (query: string): void => {
     renderStatus(shell, 'empty', `No country matches ${quoted(query)}. Try another spelling.`);
+    feedbackQuery = query.trim();
     clearResults();
   };
 
   const showFailure = (failure: SearchFailure, query: string): void => {
     renderStatus(shell, 'error', failureMessage(failure.kind, failure.status, query));
+    feedbackQuery = query.trim();
     clearResults();
 
     // A retry is offered only when the same request could plausibly work.
@@ -495,6 +513,23 @@ export function createSearchView(mount: HTMLElement, actions: SearchViewActions)
     }
   };
 
+  /**
+   * Takes back an empty or failed message — and with it the retry control — as
+   * soon as the box holds another query than the one they were written for. The
+   * flow answers a new query only after its debounce, so until then the old
+   * message is what the user sees, and pressing its retry would start a request
+   * out of step with that debounce.
+   */
+  const clearFeedbackFor = (query: string): void => {
+    if (feedbackQuery === null || feedbackQuery === query) {
+      return;
+    }
+
+    feedbackQuery = null;
+    shell.status.hidden = true;
+    shell.status.replaceChildren();
+  };
+
   /** The clear button only makes sense while there is something to clear. */
   const syncClearButton = (value: string): void => {
     shell.clearButton.hidden = value === '';
@@ -504,6 +539,7 @@ export function createSearchView(mount: HTMLElement, actions: SearchViewActions)
     shell.input.value = value;
     syncClearButton(value);
     syncStaleMarking();
+    clearFeedbackFor(value.trim());
   };
 
   shell.input.addEventListener('input', () => {
@@ -512,6 +548,7 @@ export function createSearchView(mount: HTMLElement, actions: SearchViewActions)
     // a `type="search"` box, which changes the value without this app's help.
     syncClearButton(shell.input.value);
     syncStaleMarking();
+    clearFeedbackFor(shell.input.value.trim());
     actions.onQueryChange(shell.input.value);
   });
   shell.clearButton.addEventListener('click', () => {
@@ -535,6 +572,7 @@ export function createSearchView(mount: HTMLElement, actions: SearchViewActions)
     showResults,
     showNoMatches,
     showFailure,
+    clearFeedbackFor,
     setQuery,
   };
 }
