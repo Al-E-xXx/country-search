@@ -34,6 +34,9 @@
   --radius-card: 10px;
   --shadow-card: 0 1px 2px rgb(22 32 44 / 8%), 0 2px 8px rgb(22 32 44 / 6%);
   --space: 1rem;
+  --line-thin: 1px;
+  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --line-height: 1.5;
 }
 
 /* Base ------------------------------------------------------------------- */
@@ -48,14 +51,9 @@ body {
   margin: 0;
   background: var(--color-page);
   color: var(--color-text);
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
+  font-family: var(--font-body);
   font-size: 16px;
-  line-height: 1.5;
+  line-height: var(--line-height);
 }
 
 /* App shell: .app > .app__header + .search + .layout --------------------- */
@@ -101,7 +99,7 @@ body {
 .search__input {
   flex: 1 1 auto;
   padding: 0.75rem 1rem;
-  border: 1px solid var(--color-line);
+  border: var(--line-thin) solid var(--color-line);
   border-radius: var(--radius-panel);
   background: var(--color-surface);
   color: inherit;
@@ -125,7 +123,7 @@ body {
 .search__clear,
 .status__action {
   padding: 0.75rem 1rem;
-  border: 1px solid var(--color-line);
+  border: var(--line-thin) solid var(--color-line);
   border-radius: var(--radius-panel);
   background: var(--color-surface);
   color: var(--color-text);
@@ -151,12 +149,18 @@ body {
   display: none;
 }
 
-/* The retry control stands out: it is the way out of a failed search. */
+/* The retry control stands out: it is the way out of a failed search, so it is
+   drawn in the colours of the failure state rather than in the neutral ones. */
 .status__action {
   border-color: var(--color-error-line);
   background: var(--color-surface);
   color: var(--color-error);
   font-weight: 600;
+}
+
+.status__action:hover {
+  border-color: var(--color-error);
+  background: var(--color-error-bg);
 }
 
 .status__action[hidden] {
@@ -175,7 +179,7 @@ body {
   align-items: center;
   margin: 0 0 calc(var(--space) * 1.25);
   padding: 0.9rem 1.15rem;
-  border: 1px solid var(--color-line);
+  border: var(--line-thin) solid var(--color-line);
   border-radius: var(--radius-panel);
   background: var(--color-surface);
 }
@@ -183,6 +187,7 @@ body {
 .status::before {
   font-size: 1.15rem;
   line-height: 1;
+  color: var(--icon-color, currentColor);
 }
 
 .status__text {
@@ -193,6 +198,7 @@ body {
 .status[data-tone='idle'] {
   border-style: dashed;
   color: var(--color-text-muted);
+  --icon-color: var(--color-text-muted);
 }
 
 .status[data-tone='idle']::before {
@@ -203,6 +209,7 @@ body {
   border-color: var(--color-loading-line);
   background: var(--color-loading-bg);
   color: var(--color-loading);
+  --icon-color: var(--color-loading);
 }
 
 .status[data-tone='loading']::before {
@@ -213,6 +220,7 @@ body {
   border-color: var(--color-empty-line);
   background: var(--color-empty-bg);
   color: var(--color-empty);
+  --icon-color: var(--color-empty);
 }
 
 .status[data-tone='empty']::before {
@@ -223,6 +231,7 @@ body {
   border-color: var(--color-error-line);
   background: var(--color-error-bg);
   color: var(--color-error);
+  --icon-color: var(--color-error);
 }
 
 .status[data-tone='error']::before {
@@ -273,7 +282,7 @@ body {
   width: 100%;
   height: 100%;
   padding: 0.75rem;
-  border: 1px solid var(--color-line);
+  border: var(--line-thin) solid var(--color-line);
   border-radius: var(--radius-card);
   background: var(--color-surface);
   color: inherit;
@@ -297,7 +306,7 @@ body {
   width: 3rem;
   height: 2rem;
   flex: 0 0 auto;
-  border: 1px solid var(--color-line);
+  border: var(--line-thin) solid var(--color-line);
   border-radius: 4px;
   object-fit: cover;
   background: #eef2f7;
@@ -331,7 +340,7 @@ body {
 
 .details {
   padding: calc(var(--space) * 1.25);
-  border: 1px solid var(--color-line);
+  border: var(--line-thin) solid var(--color-line);
   border-radius: var(--radius-panel);
   background: var(--color-surface);
   box-shadow: var(--shadow-card);
@@ -356,7 +365,7 @@ body {
 .details__flag {
   width: 4.5rem;
   height: 3rem;
-  border: 1px solid var(--color-line);
+  border: var(--line-thin) solid var(--color-line);
   border-radius: 4px;
   object-fit: cover;
 }
@@ -384,7 +393,7 @@ body {
 .details__close {
   margin-left: auto;
   padding: 0.4rem 0.75rem;
-  border: 1px solid var(--color-line);
+  border: var(--line-thin) solid var(--color-line);
   border-radius: 8px;
   background: transparent;
   color: var(--color-text-muted);
@@ -413,7 +422,7 @@ body {
   grid-template-columns: 8.5rem minmax(0, 1fr);
   gap: 0.5rem;
   padding-top: 0.6rem;
-  border-top: 1px solid var(--color-line);
+  border-top: var(--line-thin) solid var(--color-line);
 }
 
 .details__fact dt {
@@ -424,6 +433,27 @@ body {
 .details__fact dd {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+/* Interaction ------------------------------------------------------------ 
+   Hover and focus change colours, and the results change opacity when they are
+   marked as another query's answer; 120ms is short enough to feel immediate and
+   long enough for the change not to flicker. Elements that come and go with
+   `display: none` are left out: a transition cannot start from a box that is not
+   laid out. */
+.search__input,
+.search__clear,
+.status__action,
+.country-card__select,
+.details__close {
+  transition:
+    color 120ms ease,
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.country-list {
+  transition: opacity 120ms ease;
 }
 
 /* Responsive ------------------------------------------------------------- */
@@ -441,5 +471,14 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .status__spinner {
     animation: none;
+  }
+
+  .search__input,
+  .search__clear,
+  .status__action,
+  .country-card__select,
+  .details__close,
+  .country-list {
+    transition: none;
   }
 }
