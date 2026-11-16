@@ -1,0 +1,47 @@
+name: Deploy
+
+on:
+  push:
+    branches: [country-search]
+  workflow_dispatch:
+
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    # Deploy only from this branch and only for the repository owner.
+    if: github.ref == 'refs/heads/country-search' && github.actor == 'Al-E-xXx'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    # Needs the "GitHub Actions" Pages source and no branch rule blocking this branch.
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
