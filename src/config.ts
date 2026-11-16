@@ -15,3 +15,9 @@ export const SEARCH_CACHE_TTL_MS = 30_000;
 
 /** How many answers the cache keeps before the oldest one is pushed out. */
 export const SEARCH_CACHE_MAX_ENTRIES = 50;
+
+/** The name under which the browser keeps the list of queries searched so far. */
+export const HISTORY_STORAGE_KEY = 'country-search.history';
+
+/** How many recent queries the interface offers to search again. */
+export const SEARCH_HISTORY_MAX_ENTRIES = 8;
