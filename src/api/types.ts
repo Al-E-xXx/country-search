@@ -5,8 +5,12 @@
  * except the name is treated as optional: the payload comes from an external
  * service, so the view-model layer has to cope with missing fields instead of
  * trusting the response.
+ *
+ * Declared as a type alias rather than an interface on purpose: only object type
+ * aliases get an implicit index signature, which is what lets the mapper widen a
+ * response to `Record<string, unknown>` and re-check every field at runtime.
  */
-export interface ApiCountry {
+export type ApiCountry = {
   name: string;
   nativeName?: string;
   capital?: string;
@@ -23,7 +27,9 @@ export interface ApiCountry {
   borders?: string[];
   demonym?: string;
   independent?: boolean;
-}
+  /** Alpha-3 code of this country, used as its identity. */
+  alpha3Code?: string;
+};
 
 export interface ApiCountryFlags {
   svg?: string;
